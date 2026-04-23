@@ -2,44 +2,147 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AutoCAD 指令大師：鍵盤防禦戰 v2.0</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AutoCAD 指令大師：鍵盤防禦戰 v3.0 (手機優化版)</title>
 <style>
-    body { margin: 0; background-color: #1e1e1e; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; }
-    #game-container { position: relative; width: 95%; max-width: 600px; height: 65vh; background-color: #252526; border: 2px solid #007acc; border-radius: 10px; margin-top: 20px; overflow: hidden; }
-    #ui-bar { display: flex; justify-content: space-between; padding: 10px 20px; background-color: #333; font-weight: bold; }
-    .enemy { position: absolute; background-color: #d16969; color: white; padding: 8px 12px; border-radius: 5px; font-weight: bold; text-align: center; white-space: nowrap; transition: top 0.1s linear; }
-    #input-area { margin-top: 15px; width: 95%; max-width: 600px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-    #command-input { padding: 12px; font-size: 1.2rem; width: 100%; text-align: center; text-transform: uppercase; border: 2px solid #007acc; border-radius: 8px; background-color: #333; color: #4fc1ff; outline: none; }
-    .btn { padding: 12px 24px; font-size: 1.1rem; background-color: #007acc; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-    #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; text-align: center; }
+    * { box-sizing: border-box; }
+    body, html {
+        margin: 0; padding: 0;
+        width: 100%; height: 100%;
+        background-color: #1e1e1e; color: white;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden; /* 防止整個網頁上下滑動 */
+        touch-action: none; /* 防止下拉更新干擾 */
+    }
+    
+    /* 使用 absolute 撐滿畫面，並搭配 dvh 完美適應手機鍵盤彈出 */
+    #app-wrapper {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        height: 100dvh; 
+        display: flex;
+        flex-direction: column;
+    }
+
+    #ui-bar {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 20px;
+        background-color: #333;
+        font-weight: bold;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+        z-index: 20;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    }
+
+    #game-area {
+        flex-grow: 1; /* 自動填滿剩餘高度 */
+        position: relative;
+        background-color: #252526;
+        overflow: hidden;
+        width: 100%;
+    }
+
+    .enemy {
+        position: absolute;
+        background-color: #d16969;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 5px;
+        font-weight: bold;
+        text-align: center;
+        white-space: nowrap;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+
+    #input-area {
+        flex-shrink: 0;
+        padding: 10px 15px;
+        background-color: #1e1e1e;
+        display: flex;
+        justify-content: center;
+        z-index: 20;
+        /* 適應 iPhone 底部橫條的安全距離 */
+        padding-bottom: env(safe-area-inset-bottom, 15px);
+    }
+
+    #command-input {
+        width: 100%;
+        max-width: 600px;
+        padding: 12px;
+        font-size: 16px; /* 必須為 16px，防止 iOS 自動放大 */
+        text-align: center;
+        text-transform: uppercase;
+        border: 2px solid #007acc;
+        border-radius: 8px;
+        background-color: #333;
+        color: #4fc1ff;
+        outline: none;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+        -webkit-appearance: none;
+    }
+
+    #command-input:focus {
+        border-color: #4fc1ff;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        font-size: 1.2rem;
+        background-color: #007acc;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    #overlay {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.85);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 30;
+        text-align: center;
+    }
+
+    #overlay h1 { color: #4fc1ff; margin-bottom: 10px;}
+    #sub-msg { font-size: 1.2rem; margin-bottom: 30px; }
 </style>
 </head>
 <body>
 
-<div id="game-container">
+<div id="app-wrapper">
     <div id="ui-bar">
         <span>❤️ 生命: <span id="lives">5</span></span>
         <span>🏆 分數: <span id="score">0</span></span>
     </div>
-    <div id="game-area" style="position: relative; width: 100%; height: calc(100% - 45px);"></div>
+    
+    <div id="game-area"></div>
+    
+    <div id="input-area">
+        <input type="text" id="command-input" placeholder="輸入快捷鍵並按 Enter" autocomplete="off" disabled>
+    </div>
+
     <div id="overlay">
         <h1 id="msg">指令大師防禦戰</h1>
-        <p id="sub-msg">準備好左手操作快捷鍵了嗎？</p>
+        <p id="sub-msg">手機鍵盤盲打挑戰！</p>
         <button class="btn" onclick="startGame()">開始挑戰</button>
     </div>
 </div>
 
-<div id="input-area">
-    <input type="text" id="command-input" placeholder="在這裡輸入快捷鍵並按 Enter" autocomplete="off" disabled>
-</div>
-
 <script>
+    // 整合 Week 01 到 Week 05 所有核心指令
     const dict = {
         "接合": "J", "快速選取": "QSE", "直線": "L", "聚合線": "PL", "矩形": "REC", "圓形": "C",
         "偏移": "O", "修剪": "TR", "延伸": "EX", "複製": "CO", "移動": "M", "旋轉": "RO",
         "鏡射": "MI", "陣列": "AR", "填充線": "H", "分解": "X", "建立圖塊": "B", "插入圖塊": "I",
-        "標註": "DIM", "單行文字": "DT", "多行文字": "T", "計數": "COUNT"
+        "標註": "DIM", "單行文字": "DT", "多行文字": "MT", "計數": "COUNT",
+        "尋找": "FIND", "多重引線": "MLEADER", "文字型式": "STYLE"
     };
     const words = Object.keys(dict);
     let score = 0, lives = 5, isPlaying = false, enemies = [], loop, spawner;
@@ -50,8 +153,11 @@
         document.getElementById('lives').innerText = 5;
         document.getElementById('game-area').innerHTML = '';
         document.getElementById('overlay').style.display = 'none';
-        document.getElementById('command-input').disabled = false;
-        document.getElementById('command-input').focus();
+        
+        const inputEl = document.getElementById('command-input');
+        inputEl.disabled = false;
+        inputEl.value = '';
+        inputEl.focus(); // 自動喚出鍵盤
         
         loop = setInterval(update, 50);
         spawner = setInterval(spawn, 2000);
@@ -64,22 +170,35 @@
         el.className = 'enemy';
         el.innerText = word;
         el.dataset.code = dict[word];
-        el.style.left = Math.random() * (document.getElementById('game-area').clientWidth - 80) + 'px';
+        
+        // 確保方塊不會超出右邊界 (預留 80px 寬度)
+        const maxLeft = document.getElementById('game-area').clientWidth - 80;
+        el.style.left = (Math.random() * maxLeft) + 'px';
         el.style.top = '0px';
+        
         document.getElementById('game-area').appendChild(el);
         enemies.push(el);
     }
 
     function update() {
         const speed = 2 + (score / 100);
+        const gameAreaHeight = document.getElementById('game-area').clientHeight;
+        
         for(let i=enemies.length-1; i>=0; i--) {
             let top = parseFloat(enemies[i].style.top) + speed;
             enemies[i].style.top = top + 'px';
-            if(top > document.getElementById('game-area').clientHeight - 30) {
+            
+            // 動態判定底部界線 (即使鍵盤彈出導致高度縮小也能正確判定)
+            if(top > gameAreaHeight - 35) {
                 document.getElementById('game-area').removeChild(enemies[i]);
                 enemies.splice(i, 1);
                 lives--;
                 document.getElementById('lives').innerText = lives;
+                
+                // 扣血畫面閃爍提示
+                document.getElementById('game-area').style.backgroundColor = '#4a2525';
+                setTimeout(() => document.getElementById('game-area').style.backgroundColor = '#252526', 150);
+
                 if(lives <= 0) endGame();
             }
         }
@@ -89,14 +208,23 @@
         if(e.key === 'Enter' && isPlaying) {
             const val = e.target.value.trim().toUpperCase();
             e.target.value = '';
+            
             for(let i=0; i<enemies.length; i++) {
-                if(enemies[i].dataset.code === val || (val === "QSELECT" && enemies[i].dataset.code === "QSE")) {
+                // 寬容判定：QSELECT=QSE, 多行文字 T=MT
+                if(enemies[i].dataset.code === val || 
+                  (val === "QSELECT" && enemies[i].dataset.code === "QSE") ||
+                  (val === "T" && enemies[i].dataset.code === "MT")) {
+                    
                     score += 10;
                     document.getElementById('score').innerText = score;
                     enemies[i].style.backgroundColor = '#4CAF50';
                     const target = enemies[i];
                     enemies.splice(i, 1);
-                    setTimeout(() => document.getElementById('game-area').removeChild(target), 100);
+                    
+                    // 擊殺動畫延遲消失
+                    setTimeout(() => {
+                        if(target.parentNode) document.getElementById('game-area').removeChild(target);
+                    }, 100);
                     return;
                 }
             }
@@ -108,8 +236,10 @@
         clearInterval(loop); clearInterval(spawner);
         document.getElementById('overlay').style.display = 'flex';
         document.getElementById('msg').innerText = "挑戰結束！";
+        document.getElementById('msg').style.color = "#d16969";
         document.getElementById('sub-msg').innerText = "您的最終得分是：" + score;
         document.getElementById('command-input').disabled = true;
+        document.getElementById('command-input').blur(); // 收起鍵盤
     }
 </script>
 </body>
