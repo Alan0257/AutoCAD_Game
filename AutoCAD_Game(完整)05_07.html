@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<!-- ... existing code ... -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AutoCAD 指令大師：鍵盤防禦戰 v6.0 (全課綱完整版)</title>
+<style>
+    * { box-sizing: border-box; }
+    
+    html, body {
+        margin: 0; padding: 0;
+        width: 100%; height: 100%;
+        background-color: #121212; /* 外圍背景調暗 */
+        color: white;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        position: fixed; 
+        top: 0; left: 0;
+        touch-action: none;
+    }
+
+    /* 將遊戲主體限制為手機寬度並置中 */
+    #app-wrapper {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        max-width: 500px; /* 電腦版模擬手機寬度 */
+        height: 100%;
+        margin: 0 auto; /* 電腦版置中 */
+        background-color: #1e1e1e; /* 遊戲區背景色 */
+        box-shadow: 0 0 20px rgba(0,0,0,0.8); /* 邊緣陰影區隔 */
+    }
+
+    /* 遊戲掉落區 */
+    #game-area {
+        flex-grow: 1;
+        position: relative;
+        background-color: #252526;
+        overflow: hidden;
+        width: 100%;
+        border-bottom: 2px solid #007acc;
+    }
+
+    .enemy {
+        position: absolute;
+        background-color: #d16969;
+        color: white;
+        padding: 8px 14px;
+        border-radius: 5px;
+        font-weight: bold;
+        text-align: center;
+        white-space: nowrap;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+        border: 1px solid #ff8888;
+        font-size: 1.1rem;
+    }
+
+    /* 底部控制台：保證與鍵盤緊密相連 */
+    #bottom-console {
+        flex-shrink: 0;
+        background-color: #1e1e1e;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 10px 15px;
+        padding-bottom: env(safe-area-inset-bottom, 15px);
+        z-index: 20;
+    }
+
+    #ui-bar {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        font-weight: bold;
+        font-size: 1.1rem;
+        color: #e0e0e0;
+    }
+
+    .stat-box {
+        background-color: #333;
+        padding: 5px 15px;
+        border-radius: 20px;
+        border: 1px solid #555;
+    }
+
+    #command-input {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px; /* 防止 iOS 點擊時自動放大 */
+        text-align: center;
+        text-transform: uppercase;
+        border: 2px solid #007acc;
+        border-radius: 8px;
+        background-color: #333;
+        color: #4fc1ff;
+        outline: none;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        -webkit-appearance: none;
+        letter-spacing: 2px;
+        font-weight: bold;
+    }
+
+    #command-input:focus {
+        border-color: #4fc1ff;
+        background-color: #444;
+    }
+
+    .btn {
+        padding: 15px 30px;
+        font-size: 1.2rem;
+        background-color: #007acc;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+
+    #overlay {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.9);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 30;
+        text-align: center;
+    }
+
+    #overlay h1 { color: #4fc1ff; margin-bottom: 10px; font-size: 2.2rem;}
+    #sub-msg { font-size: 1.1rem; margin-bottom: 30px; color: #aaa; padding: 0 20px;}
+</style>
+</head>
+<body>
+
+<div id="app-wrapper">
+    <div id="game-area"></div>
+    
+    <div id="bottom-console">
+        <div id="ui-bar">
+            <div class="stat-box">❤️ <span id="lives" style="color:#ff6b6b;">5</span></div>
+            <div class="stat-box">🏆 <span id="score" style="color:#4fc1ff;">0</span></div>
+        </div>
+        <input type="text" id="command-input" placeholder="輸入後按 ENTER (ESC清除)" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" disabled>
+    </div>
+
+    <div id="overlay">
+        <h1 id="msg">指令防禦戰</h1>
+        <p id="sub-msg">電腦與手機皆可遊玩<br>鍵盤彈出後請盡情盲打！</p>
+        <button class="btn" onclick="startGame()">開始挑戰</button>
+    </div>
+</div>
+
+<script>
+    const dict = {
+        // Week 1-2: 基礎繪圖與環境
+        "直線": "L", "聚合線": "PL", "矩形": "REC", "圓形": "C", "圓弧": "ARC", "多邊形": "POL", "選項": "OP",
+        // Week 3: 修改指令
+        "移動": "M", "複製": "CO", "旋轉": "RO", "偏移": "O", "鏡射": "MI", "陣列": "AR",
+        "修剪": "TR", "延伸": "EX", "圓角": "F", "分解": "X", "結合": "J", "填充線": "H",
+        // Week 4: 註解與標註
+        "文字型式": "STYLE", "單行文字": "DT", "多行文字": "T", "尋找": "FIND",
+        "標註": "DIM", "標註型式": "D", "多重引線": "MLEADER",
+        // Week 5: 圖塊與統計
+        "建立圖塊": "B", "插入圖塊": "I", "圖塊編輯": "BEDIT", "寫出圖塊": "WBLOCK",
+        "設計中心": "ADC", "計數": "COUNT", "快速選取": "QSE",
+        // Week 6: 圖層與性質
+        "圖層管理": "LA", "性質面板": "PR", "圖層漫遊": "LAYWALK", "圖層隔離": "LAYISO",
+        // Week 7: 圖框與出圖
+        "出圖": "PLOT", "頁面設置": "PAGESETUP", "建立視埠": "MV", "批次發佈": "PUBLISH"
+    };
+    const words = Object.keys(dict);
+    let score = 0, lives = 5, isPlaying = false, enemies = [], loop, spawner;
+
+    function startGame() {
+        score = 0; lives = 5; isPlaying = true; enemies = [];
+        document.getElementById('score').innerText = 0;
+        document.getElementById('lives').innerText = 5;
+        document.getElementById('game-area').innerHTML = '';
+        document.getElementById('overlay').style.display = 'none';
+        
+        const inputEl = document.getElementById('command-input');
+        inputEl.disabled = false;
+        inputEl.value = '';
+        inputEl.focus(); 
+        
+        loop = setInterval(update, 50);
+        // 生成頻率變慢：從 2000ms 改為 2800ms
+        spawner = setInterval(spawn, 2800);
+    }
+
+    function spawn() {
+        if(!isPlaying) return;
+        const word = words[Math.floor(Math.random() * words.length)];
+        const el = document.createElement('div');
+        el.className = 'enemy';
+        el.innerText = word;
+        el.dataset.code = dict[word];
+        
+        const gameArea = document.getElementById('game-area');
+        // 預留右側空間
+        const maxLeft = gameArea.clientWidth - 100;
+        el.style.left = (Math.random() * maxLeft + 10) + 'px';
+        
+        el.style.top = '10px'; 
+        
+        gameArea.appendChild(el);
+        enemies.push(el);
+    }
+
+    function update() {
+        // 速度大幅調降：基礎速度從 2 降為 1.2，加速門檻從 150 分放寬到 300 分
+        const speed = 1.2 + (score / 300); 
+        const gameAreaHeight = document.getElementById('game-area').clientHeight;
+        
+        for(let i=enemies.length-1; i>=0; i--) {
+            let top = parseFloat(enemies[i].style.top) + speed;
+            enemies[i].style.top = top + 'px';
+            
+            if(top > gameAreaHeight - 40) {
+                document.getElementById('game-area').removeChild(enemies[i]);
+                enemies.splice(i, 1);
+                lives--;
+                document.getElementById('lives').innerText = lives;
+                
+                document.getElementById('game-area').style.backgroundColor = '#4a1515';
+                setTimeout(() => document.getElementById('game-area').style.backgroundColor = '#252526', 150);
+
+                if(lives <= 0) endGame();
+            }
+        }
+    }
+
+    document.getElementById('command-input').addEventListener('keydown', (e) => {
+        // 增加 ESC 快速清空功能，避免打錯字要慢慢刪
+        if(e.key === 'Escape') {
+            e.target.value = '';
+            return;
+        }
+
+        if(e.key === 'Enter' && isPlaying) {
+            const val = e.target.value.trim().toUpperCase();
+            e.target.value = ''; 
+            
+            for(let i=0; i<enemies.length; i++) {
+                let targetCode = enemies[i].dataset.code;
+                if( targetCode === val || 
+                   (val === "QSELECT" && targetCode === "QSE") ||
+                   (val === "MT" && targetCode === "T") ||
+                   (val === "DIMSTYLE" && targetCode === "D")) {
+                    
+                    score += 10;
+                    document.getElementById('score').innerText = score;
+                    enemies[i].style.backgroundColor = '#4CAF50';
+                    enemies[i].style.borderColor = '#4CAF50';
+                    const target = enemies[i];
+                    enemies.splice(i, 1);
+                    
+                    setTimeout(() => {
+                        if(target.parentNode) document.getElementById('game-area').removeChild(target);
+                    }, 100);
+                    return; 
+                }
+            }
+        }
+    });
+
+    function endGame() {
+        isPlaying = false;
+        clearInterval(loop); clearInterval(spawner);
+        document.getElementById('overlay').style.display = 'flex';
+        document.getElementById('msg').innerText = "挑戰結束！";
+        document.getElementById('msg').style.color = "#ff6b6b";
+        document.getElementById('sub-msg').innerText = "您的最終得分是：" + score;
+        document.getElementById('command-input').disabled = true;
+        document.getElementById('command-input').blur(); 
+    }
+</script>
+</body>
+</html>
